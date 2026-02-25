@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Discover your next favorite song with data-driven music recommendations.">
+    <title>Resonance — Music Discovery</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header id="appHeader">
+            <div class="logo-row">
+                <svg class="logo-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M8 12h8"></path>
+                    <path d="M12 8v8"></path>
+                </svg>
+                <h1>Resonance</h1>
+            </div>
+            <p class="tagline">Data-driven music discovery across your favorite genres and moods.</p>
+        </header>
+
+        <!-- Search Section -->
+        <section class="search-section" id="searchSection">
+            <div class="search-wrapper">
+                <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input type="text" id="searchInput" placeholder="Search for a song or artist..." autocomplete="off">
+                <button id="clearSearch" class="clear-btn hidden" title="Clear search">✕</button>
+            </div>
+            <div id="searchDropdown" class="search-dropdown hidden"></div>
+        </section>
+
+        <!-- Similar Songs Banner (shown after search) -->
+        <div id="similarBanner" class="similar-banner hidden">
+            <div class="similar-banner-content">
+                <div class="similar-text">
+                    <strong id="similarTitle">Similar to: Song Name</strong>
+                    <span id="similarSubtitle">Based on audio features and structural data</span>
+                </div>
+                <button id="clearSimilar" class="clear-similar-btn">Clear filter</button>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <section class="controls" id="controlsPanel">
+            <div class="control-group">
+                <label for="timeOfDay">Time of Day</label>
+                <select id="timeOfDay">
+                    <option value="All">All Times</option>
+                    <option value="Morning">Morning</option>
+                    <option value="Afternoon">Afternoon</option>
+                    <option value="Evening">Evening</option>
+                    <option value="Night">Night</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label for="mood">Mood</label>
+                <select id="mood">
+                    <option value="All">All Moods</option>
+                    <option value="Happy">Happy</option>
+                    <option value="Relaxed">Relaxed</option>
+                    <option value="Energetic">Energetic</option>
+                    <option value="Focus">Focus</option>
+                    <option value="Melancholy">Melancholy</option>
+                    <option value="Romantic">Romantic</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label for="genre">Genre</label>
+                <select id="genre">
+                    <option value="All">All Genres</option>
+                </select>
+            </div>
+            <div class="control-group btn-group">
+                <button id="recommendBtn">Discover</button>
+                <button id="shuffleBtn" class="shuffle-btn" title="Random discovery">Shuffle</button>
+            </div>
+        </section>
+
+        <!-- Genre Tags -->
+        <section class="genre-tags" id="genreTags">
+            <button class="genre-tag active" data-genre="All">All</button>
+        </section>
+
+        <!-- Insights Bar -->
+        <section class="insights-bar" id="insightsBar">
+            <div class="stat-item">
+                <span class="stat-label">Songs Found</span>
+                <span class="stat-number" id="totalSongs">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Top Genre</span>
+                <span class="stat-number" id="topGenre">—</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Avg Energy</span>
+                <span class="stat-number" id="avgEnergy">—</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Favorites</span>
+                <span class="stat-number" id="favCount">0</span>
+            </div>
+        </section>
+
+        <!-- Favorites Toggle -->
+        <div class="view-toggle">
+            <button id="allSongsView" class="view-btn active">All Recommendations</button>
+            <button id="favoritesView" class="view-btn">My Favorites</button>
+        </div>
+
+        <!-- Results -->
+        <div class="results-header">
+            <h2 id="resultsHeading" class="hidden">Recommendations</h2>
+        </div>
+        <div id="results" class="grid"></div>
+        <div id="noResults" class="no-results hidden">
+            <p>No matches found with the current filters.</p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
