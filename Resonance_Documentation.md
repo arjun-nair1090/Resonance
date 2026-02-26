@@ -2,6 +2,7 @@
 **Documentation & Architecture Guide**
 
 ## Overview
+
 Resonance (formerly SoundScape) is a purely static, client-side music discovery engine that operates on a real dataset of 10,000+ extracted Spotify track properties from a CSV (`Spotify_Song_Attributes.csv`). The app features advanced, weighted multi-attribute search and dynamic metadata scraping (from the iTunes API) to fetch missing album structures. No backend, database, or trained machine-learning model is required.
 
 ## System Architecture & "Training" Logic

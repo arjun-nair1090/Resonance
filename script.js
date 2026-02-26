@@ -3,6 +3,7 @@
 // ============================================================
 
 let allSongs = [];
+
 let displayedSongs = [];
 let favorites = JSON.parse(localStorage.getItem('resonance_favorites') || '[]');
 let currentView = 'all';
