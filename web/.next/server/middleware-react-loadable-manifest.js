@@ -1,0 +1,1 @@
+self.__REACT_LOADABLE_MANIFEST="{\"components\\\\SmartSearch.tsx -> @/lib/recommendations\":{\"id\":\"components\\\\SmartSearch.tsx -> @/lib/recommendations\",\"files\":[\"static/chunks/_app-pages-browser_lib_recommendations_ts.js\"]}}"

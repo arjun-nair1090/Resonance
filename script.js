@@ -1,7 +1,3 @@
-// ============================================================
-// SoundScape — Smart Music Discovery (Spotify Dataset Edition)
-// ============================================================
-
 let allSongs = [];
 
 let displayedSongs = [];
@@ -10,7 +6,6 @@ let currentView = 'all';
 let currentSimilarSong = null;
 let allGenres = [];
 
-// ===== OBSERVERS =====
 let coverObserver;
 let entranceObserver;
 
@@ -48,11 +43,9 @@ async function fetchCoverArt(img) {
             img.onload = () => img.classList.add('loaded');
         }
     } catch (e) {
-        // Silent fail, fallback placeholder remains visible
     }
 }
 
-// ===== CSV PARSING =====
 async function loadCSV() {
     try {
         const response = await fetch('Spotify_Song_Attributes.csv');
@@ -99,7 +92,6 @@ function parseCSV(text) {
         const durationMs = parseFloat(values[20]);
         const spotifyId = cleanQuotes(values[16]);
 
-        // Skip songs with missing critical data
         if (!trackName || isNaN(energy) || isNaN(valence) || isNaN(danceability)) continue;
 
         const mood = deriveMood(valence, energy, danceability, acousticness, instrumentalness);
@@ -136,7 +128,6 @@ function deduplicateSongs(songs) {
     const seen = new Set();
     const unique = [];
     for (const song of songs) {
-        // Prefer dedup by Spotify track ID, fallback to title+artist
         const key = song.spotifyId
             ? song.spotifyId
             : (song.title.toLowerCase() + '|||' + song.artist.toLowerCase());
@@ -145,7 +136,6 @@ function deduplicateSongs(songs) {
             unique.push(song);
         }
     }
-    // Re-assign sequential IDs
     unique.forEach((s, i) => s.id = i);
     return unique;
 }
@@ -179,8 +169,6 @@ function cleanQuotes(str) {
     return str.replace(/^"+|"+$/g, '').trim();
 }
 
-
-// ===== MOOD DERIVATION =====
 function deriveMood(valence, energy, danceability, acousticness, instrumentalness) {
     if (valence > 0.6 && energy > 0.6) return 'Happy';
     if (energy > 0.7 && danceability > 0.65) return 'Energetic';
@@ -205,8 +193,6 @@ function deriveVibe(valence, energy, danceability, tempo) {
     return 'Vibe';
 }
 
-
-// ===== REASON GENERATION =====
 function generateReason(mood, energy, valence, danceability, genre, tempo) {
     const reasons = {
         Happy: [
@@ -245,11 +231,8 @@ function generateReason(mood, energy, valence, danceability, genre, tempo) {
     return pool[Math.floor(Math.random() * pool.length)];
 }
 
-
-// ===== GENRE MANAGEMENT =====
 function populateGenreDropdown() {
     const select = document.getElementById('genre');
-    // Keep "All Genres" as first option
     const topGenres = getTopGenres(30);
     topGenres.forEach(g => {
         const opt = document.createElement('option');
@@ -271,7 +254,6 @@ function populateGenreTags() {
         container.appendChild(btn);
     });
 
-    // Rebind tag events
     container.querySelectorAll('.genre-tag').forEach(tag => {
         tag.addEventListener('click', () => {
             container.querySelectorAll('.genre-tag').forEach(t => t.classList.remove('active'));
@@ -293,8 +275,6 @@ function getTopGenres(n) {
         .map(e => e[0]);
 }
 
-
-// ===== AUTO-DETECT TIME =====
 function autoDetectTimeOfDay() {
     const h = new Date().getHours();
     let time = 'Morning';
@@ -304,8 +284,6 @@ function autoDetectTimeOfDay() {
     document.getElementById('timeOfDay').value = time;
 }
 
-
-// ===== EVENT BINDINGS =====
 function bindEvents() {
     document.getElementById('recommendBtn').addEventListener('click', () => {
         const btn = document.getElementById('recommendBtn');
@@ -376,8 +354,6 @@ function bindEvents() {
     });
 }
 
-
-// ===== SEARCH =====
 function handleSearchInput() {
     const query = document.getElementById('searchInput').value.trim().toLowerCase();
     const dropdown = document.getElementById('searchDropdown');
@@ -440,8 +416,6 @@ function escapeHtml(str) {
     return div.innerHTML;
 }
 
-
-// ===== FIND SIMILAR (Euclidean Distance on audio features) =====
 function findSimilar(song) {
     currentSimilarSong = song;
 
@@ -455,7 +429,7 @@ function findSimilar(song) {
     const scored = allSongs
         .filter(s => s.id !== song.id)
         .map(s => ({ song: s, score: computeSimilarity(song, s) }))
-        .sort((a, b) => a.score - b.score) // Lower distance = more similar
+        .sort((a, b) => a.score - b.score)
         .slice(0, 20);
 
     const results = scored.map(s => s.song);
@@ -468,7 +442,6 @@ function findSimilar(song) {
 }
 
 function computeSimilarity(a, b) {
-    // Weighted Euclidean distance across normalized audio features
     const weights = {
         energyRaw: 3,
         valence: 3,
@@ -477,7 +450,7 @@ function computeSimilarity(a, b) {
         instrumentalness: 1.5,
         speechiness: 1,
         liveness: 0.5,
-        tempo: 1.5 // needs normalization
+        tempo: 1.5
     };
 
     let dist = 0;
@@ -488,12 +461,9 @@ function computeSimilarity(a, b) {
     dist += weights.instrumentalness * Math.pow(a.instrumentalness - b.instrumentalness, 2);
     dist += weights.speechiness * Math.pow(a.speechiness - b.speechiness, 2);
     dist += weights.liveness * Math.pow(a.liveness - b.liveness, 2);
-    // Normalize tempo to 0-1 range (assuming 40-220 BPM range)
     const tempoA = (a.tempo - 40) / 180;
     const tempoB = (b.tempo - 40) / 180;
     dist += weights.tempo * Math.pow(tempoA - tempoB, 2);
-
-    // Genre bonus: if same genre, reduce distance
     if (a.genre && b.genre && a.genre === b.genre) {
         dist *= 0.6;
     }
@@ -505,8 +475,6 @@ function hideSimilarBanner() {
     document.getElementById('similarBanner').classList.add('hidden');
 }
 
-
-// ===== MAIN RECOMMENDATIONS =====
 function generateRecommendations() {
     if (currentSimilarSong) return;
 
@@ -516,21 +484,16 @@ function generateRecommendations() {
 
     let results = [...allSongs];
 
-    // Mood filter
     if (mood !== 'All') {
         results = results.filter(s => s.mood === mood);
     }
-
-    // Genre filter
     if (genre !== 'All') {
         results = results.filter(s => s.genre === genre);
     }
 
-    // Time of day: influence sort by energy/vibe
     if (timeOfDay !== 'All') {
         results = sortByTimeOfDay(results, timeOfDay);
     } else {
-        // Default sort by a mix of popularity-proxy (msPlayed isn't reliable here, sort by energy desc)
         results.sort((a, b) => b.energyRaw - a.energyRaw);
     }
 
@@ -542,24 +505,19 @@ function generateRecommendations() {
 }
 
 function sortByTimeOfDay(songs, time) {
-    // Score songs by how well they fit the time of day
     const scored = songs.map(s => {
         let fit = 0;
         switch (time) {
             case 'Morning':
-                // Prefer moderate energy, higher valence, acoustic
                 fit = s.valence * 2 + (1 - s.energyRaw) * 0.5 + s.acousticness * 1;
                 break;
             case 'Afternoon':
-                // Prefer balanced energy, good danceability
                 fit = s.danceability * 2 + s.valence * 1.5 + s.energyRaw * 0.5;
                 break;
             case 'Evening':
-                // Prefer medium energy, higher danceability, some valence
                 fit = s.danceability * 1.5 + s.energyRaw * 1 + s.valence * 1;
                 break;
             case 'Night':
-                // Prefer low energy, low valence, high acousticness/instrumentalness
                 fit = (1 - s.energyRaw) * 2 + (1 - s.valence) * 1.5 + s.acousticness * 1 + s.instrumentalness * 0.5;
                 break;
         }
@@ -570,8 +528,6 @@ function sortByTimeOfDay(songs, time) {
     return scored.map(s => s.song);
 }
 
-
-// ===== FAVORITES =====
 function showFavorites() {
     const favSongs = allSongs.filter(s => favorites.includes(s.id));
     renderCards(favSongs);
@@ -603,8 +559,6 @@ function updateFavCount() {
     document.getElementById('favCount').textContent = favorites.length;
 }
 
-
-// ===== SHUFFLE =====
 function shuffleDiscover() {
     currentSimilarSong = null;
     hideSimilarBanner();
@@ -613,8 +567,6 @@ function shuffleDiscover() {
     updateInsights(shuffled);
 }
 
-
-// ===== RENDER CARDS =====
 function renderCards(songs) {
     const container = document.getElementById('results');
     const heading = document.getElementById('resultsHeading');
@@ -666,7 +618,6 @@ function executeRender(songs, container, heading, noResults) {
         ).join('');
 
         const initial = song.title.charAt(0).toUpperCase();
-        // Generate a muted/pastel background instead of a neon gradient
         const hue = (song.title.charCodeAt(0) * 137 + song.artist.charCodeAt(0) * 53) % 360;
 
         const durationStr = song.durationMs ? formatDuration(song.durationMs) : '';
@@ -712,18 +663,14 @@ function executeRender(songs, container, heading, noResults) {
 
         container.appendChild(card);
 
-        // Add staggered entrance delay for initial visible cards
         if (index < 12) {
             card.style.animationDelay = `${index * 0.05}s`;
         }
-
-        // Observe for lazy loading and entrance
         entranceObserver.observe(card);
         const img = card.querySelector('.cover-img');
         if (img) coverObserver.observe(img);
     });
 
-    // Smooth scroll down to the grid organically if it's a large search
     if (songs.length > 0) {
         setTimeout(() => {
             const y = heading.getBoundingClientRect().top + window.scrollY - 100;
@@ -731,7 +678,6 @@ function executeRender(songs, container, heading, noResults) {
         }, 100);
     }
 
-    // Bind events
     container.querySelectorAll('.fav-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -756,8 +702,6 @@ function formatDuration(ms) {
     return `${min}:${sec.toString().padStart(2, '0')}`;
 }
 
-
-// ===== INSIGHTS =====
 function updateInsights(songs) {
     document.getElementById('totalSongs').textContent = songs.length;
 
@@ -779,8 +723,6 @@ function updateInsights(songs) {
     document.getElementById('avgEnergy').textContent = `${avg}%`;
 }
 
-
-// ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
     initObservers();
     bindEvents();

@@ -1,0 +1,29 @@
+[
+  {
+    "id": "t1",
+    "title": "Neon Echoes",
+    "artist": "Synthwave Collective",
+    "cover": "https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=200&h=200&auto=format&fit=crop",
+    "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+    "genre": "Synthwave",
+    "mood": "Energetic"
+  },
+  {
+    "id": "t2",
+    "title": "Midnight City",
+    "artist": "M83",
+    "cover": "https://images.unsplash.com/photo-1621252179027-94459d278660?w=200&h=200&auto=format&fit=crop",
+    "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+    "genre": "Synthpop",
+    "mood": "Nostalgic"
+  },
+  {
+    "id": "t3",
+    "title": "Digital Dreams",
+    "artist": "The Midnight",
+    "cover": "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=200&h=200&auto=format&fit=crop",
+    "url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+    "genre": "Synthwave",
+    "mood": "Calm"
+  }
+]
