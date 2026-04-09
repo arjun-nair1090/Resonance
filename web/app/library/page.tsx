@@ -5,14 +5,25 @@ import { Library, Heart, History, Clock, Play, MoreHorizontal, Music2 } from "lu
 import { GlassCard } from "@/components/GlassCard";
 import { useAuth } from "@/lib/AuthContext";
 import { useAudio } from "@/lib/AudioContext";
-import { TRACK_LIBRARY } from "@/lib/recommendations";
+import { searchMusicAPI, Track } from "@/lib/recommendations";
+import { useState, useEffect } from "react";
 
 export default function LibraryPage() {
     const { user } = useAuth();
     const { playTrack } = useAudio();
+    const [likedTracks, setLikedTracks] = useState<Track[]>([]);
+    const [loading, setLoading] = useState(true);
     
-    // In a real app, we'd fetch these from the database
-    const likedTracks = TRACK_LIBRARY.slice(5, 12);
+    useEffect(() => {
+        const fetchLibrary = async () => {
+            setLoading(true);
+            const data = await searchMusicAPI("lofi hip hop"); // Just a placeholder for "liked" tracks
+            setLikedTracks(data.slice(0, 10));
+            setLoading(false);
+        };
+        fetchLibrary();
+    }, []);
+
     const recentActivity = user?.listeningHistory?.slice(-10).reverse() || [];
 
     return (
@@ -24,16 +35,16 @@ export default function LibraryPage() {
                 </div>
                 <div className="flex flex-col gap-2 mb-4">
                     <span className="text-sm font-bold uppercase tracking-widest text-white/40">Personal Collection</span>
-                    <h1 className="text-7xl font-black tracking-tighter">YOUR LIBRARY</h1>
+                    <h1 className="text-7xl font-black tracking-tighter text-white uppercase">YOUR LIBRARY</h1>
                     <div className="flex items-center gap-4 mt-2">
                         <div className="flex -space-x-2">
                             {likedTracks.slice(0, 3).map((t, i) => (
-                                <div key={i} className="w-6 h-6 rounded-full border border-black bg-white/10 overflow-hidden">
+                                <div key={i} className="w-6 h-6 rounded-full border border-black bg-white/10 overflow-hidden shadow-lg">
                                     <img src={t.cover} className="w-full h-full object-cover" />
                                 </div>
                             ))}
                         </div>
-                        <span className="text-white/60 text-sm font-medium">85 Tracks • 4 Playlists</span>
+                        <span className="text-white/60 text-sm font-medium">{likedTracks.length} Playable Tracks • 1 Collection</span>
                     </div>
                 </div>
             </div>
@@ -51,7 +62,7 @@ export default function LibraryPage() {
                 {/* Left Column: Favorites */}
                 <div className="md:col-span-2 flex flex-col gap-6">
                     <div className="flex items-center justify-between">
-                        <h2 className="text-2xl font-bold flex items-center gap-3">
+                        <h2 className="text-2xl font-bold flex items-center gap-3 uppercase tracking-tight">
                             <Heart className="w-6 h-6 text-rose-500 fill-rose-500" />
                             Liked Songs
                         </h2>
@@ -59,22 +70,26 @@ export default function LibraryPage() {
                     </div>
 
                     <div className="flex flex-col gap-1">
-                        {likedTracks.map((track, i) => (
+                        {loading ? (
+                             Array.from({ length: 5 }).map((_, i) => (
+                                <div key={i} className="h-16 bg-white/5 animate-pulse rounded-xl" />
+                            ))
+                        ) : likedTracks.map((track, i) => (
                             <motion.div 
-                                key={i}
-                                className="flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors group cursor-pointer"
-                                onClick={() => playTrack(track as any)}
+                                key={track.id}
+                                className="flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors group cursor-pointer border border-transparent hover:border-white/5"
+                                onClick={() => playTrack(track)}
                             >
                                 <span className="text-white/20 font-mono w-4">{i + 1}</span>
-                                <div className="w-12 h-12 rounded-lg overflow-hidden relative shrink-0">
+                                <div className="w-12 h-12 rounded-lg overflow-hidden relative shrink-0 shadow-lg">
                                     <img src={track.cover} alt={track.title} className="w-full h-full object-cover" />
                                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                         <Play className="w-5 h-5 fill-current text-white" />
                                     </div>
                                 </div>
                                 <div className="flex flex-col flex-1 truncate">
-                                    <span className="font-bold text-sm text-white/90">{track.title}</span>
-                                    <span className="text-xs text-white/40">{track.artist}</span>
+                                    <span className="font-bold text-sm text-white/90 truncate">{track.title}</span>
+                                    <span className="text-xs text-white/40 truncate">{track.artist}</span>
                                 </div>
                                 <button className="text-white/20 hover:text-white transition-colors">
                                     <MoreHorizontal className="w-5 h-5" />
@@ -87,9 +102,9 @@ export default function LibraryPage() {
                 {/* Right Column: Recent Activity */}
                 <div className="flex flex-col gap-6">
                     <div className="flex items-center justify-between">
-                        <h2 className="text-2xl font-bold flex items-center gap-3">
+                        <h2 className="text-2xl font-bold flex items-center gap-3 uppercase tracking-tight">
                             <History className="w-6 h-6 text-blue-400" />
-                            Recent History
+                            History
                         </h2>
                     </div>
 
@@ -97,14 +112,16 @@ export default function LibraryPage() {
                         {recentActivity.length > 0 ? recentActivity.map((item, i) => (
                             <div key={i} className="flex items-center gap-4">
                                 <div 
-                                    className="w-10 h-10 rounded-lg border border-white/10 flex items-center justify-center overflow-hidden shrink-0 cursor-pointer group/item relative"
+                                    className="w-10 h-10 rounded-lg border border-white/10 flex items-center justify-center overflow-hidden shrink-0 cursor-pointer group/item relative shadow-md"
                                     onClick={() => playTrack({
                                         id: item.trackId,
                                         title: item.trackTitle,
                                         artist: item.artist,
                                         cover: item.cover || '',
-                                        url: (item as any).url || ''
-                                    })}
+                                        url: (item as any).url || '',
+                                        genre: item.genre || 'Music',
+                                        mood: item.mood || 'Vibe'
+                                    } as any)}
                                 >
                                     {item.cover ? (
                                         <img src={item.cover} alt={item.trackTitle} className="w-full h-full object-cover" />
@@ -125,26 +142,8 @@ export default function LibraryPage() {
                             </div>
                         )) : (
                             <div className="py-12 flex flex-col items-center justify-center text-center gap-4">
-                                <div 
-                                    className="w-10 h-10 rounded-lg border border-white/10 flex items-center justify-center overflow-hidden shrink-0 cursor-pointer group/item relative"
-                                    onClick={() => playTrack({
-                                        id: item.trackId,
-                                        title: item.trackTitle,
-                                        artist: item.artist,
-                                        cover: (item as any).cover || '',
-                                        url: (item as any).url || ''
-                                    })}
-                                >
-                                    {(item as any).cover ? (
-                                        <img src={(item as any).cover} alt={item.trackTitle} className="w-full h-full object-cover" />
-                                    ) : (
-                                        <Music2 className="w-4 h-4 text-white/20" />
-                                    )}
-                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/item:opacity-100 transition-opacity flex items-center justify-center">
-                                        <Play className="w-4 h-4 fill-current text-white" />
-                                    </div>
-                                </div>
-                                <p className="text-xs text-white/30 px-4">Your listening history will appear here once you start exploring.</p>
+                                <Music2 className="w-10 h-10 text-white/10" />
+                                <p className="text-xs text-white/30 px-4 font-medium">Your listening history will appear here once you start exploring.</p>
                             </div>
                         )}
                     </div>

@@ -3,8 +3,9 @@
 import { motion } from "framer-motion";
 import { Compass, Sparkles, TrendingUp, Music2, Search, Play } from "lucide-react";
 import { GlassCard } from "@/components/GlassCard";
-import { TRACK_LIBRARY } from "@/lib/recommendations";
+import { getTrendingTracks, Track } from "@/lib/recommendations";
 import { useAudio } from "@/lib/AudioContext";
+import { useState, useEffect } from "react";
 
 const CATEGORIES = [
     { label: "Top Charts", icon: TrendingUp, color: "from-purple-500 to-pink-500" },
@@ -16,7 +17,18 @@ const GENRES = ["Synthwave", "Lo-Fi", "Indie Rock", "Pop", "Electronic", "Ambien
 
 export default function DiscoverPage() {
     const { playTrack } = useAudio();
-    const trendingTracks = TRACK_LIBRARY.slice(0, 10);
+    const [trendingTracks, setTrendingTracks] = useState<Track[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchTrending = async () => {
+            setLoading(true);
+            const data = await getTrendingTracks(10);
+            setTrendingTracks(data);
+            setLoading(false);
+        };
+        fetchTrending();
+    }, []);
 
     return (
         <div className="flex flex-col gap-12 p-8 pb-32">
@@ -33,12 +45,11 @@ export default function DiscoverPage() {
                         <Compass className="w-5 h-5" />
                         <span>Discover New Sounds</span>
                     </div>
-                    <h1 className="text-6xl font-black tracking-tighter text-white">
+                    <h1 className="text-6xl font-black tracking-tighter text-white uppercase">
                         EXPLORE THE <br/>RESONANCE
                     </h1>
                     <p className="text-white/60 text-lg max-w-xl">
-                        AI-curated selections based on your unique listening DNA. 
-                        Find your next favorite track today.
+                        AI-curated selections powered by iTunes. Find your next favorite track today.
                     </p>
                 </div>
             </div>
@@ -46,7 +57,7 @@ export default function DiscoverPage() {
             {/* Categories */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {CATEGORIES.map((cat, i) => (
-                    <GlassCard key={i} className="p-6 cursor-pointer group overflow-hidden" glowOnHover>
+                    <GlassCard key={i} className="p-6 cursor-pointer group overflow-hidden bg-white/5 border-white/10" glowOnHover>
                         <div className="flex items-center justify-between mb-4">
                             <div className={`p-3 rounded-2xl bg-gradient-to-br ${cat.color} text-white shadow-lg group-hover:scale-110 transition-transform`}>
                                 <cat.icon className="w-6 h-6" />
@@ -61,7 +72,7 @@ export default function DiscoverPage() {
             {/* Trending Now */}
             <div className="flex flex-col gap-6">
                 <div className="flex items-center justify-between">
-                    <h2 className="text-3xl font-bold">Trending Now</h2>
+                    <h2 className="text-3xl font-bold uppercase tracking-tight">Trending Now</h2>
                     <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-4 py-2 text-sm text-white/60">
                         <Search className="w-4 h-4" />
                         <span>Search genres...</span>
@@ -69,14 +80,18 @@ export default function DiscoverPage() {
                 </div>
                 
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
-                    {trendingTracks.map((track, i) => (
+                    {loading ? (
+                        Array.from({ length: 5 }).map((_, i) => (
+                            <div key={i} className="aspect-square bg-white/5 animate-pulse rounded-2xl" />
+                        ))
+                    ) : trendingTracks.map((track, i) => (
                         <motion.div 
-                            key={i}
+                            key={track.id}
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: i * 0.1 }}
                             className="flex flex-col gap-3 group items-center text-center cursor-pointer"
-                            onClick={() => playTrack(track as any)}
+                            onClick={() => playTrack(track)}
                         >
                             <div className="relative w-full aspect-square rounded-2xl overflow-hidden shadow-2xl">
                                 <img src={track.cover} alt={track.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
@@ -86,9 +101,9 @@ export default function DiscoverPage() {
                                     </div>
                                 </div>
                             </div>
-                            <div className="flex flex-col gap-1">
+                            <div className="flex flex-col gap-1 w-full">
                                 <span className="font-bold text-white/90 truncate w-full">{track.title}</span>
-                                <span className="text-xs text-white/40">{track.artist}</span>
+                                <span className="text-xs text-white/40 truncate w-full">{track.artist}</span>
                             </div>
                         </motion.div>
                     ))}
@@ -96,8 +111,8 @@ export default function DiscoverPage() {
             </div>
 
             {/* Genre Explorer */}
-            <div className="flex flex-col gap-6">
-                <h2 className="text-3xl font-bold">Genre Explorer</h2>
+            <div className="flex flex-col gap-6 pb-12">
+                <h2 className="text-3xl font-bold uppercase tracking-tight">Genre Explorer</h2>
                 <div className="flex flex-wrap gap-3">
                     {GENRES.map((genre) => (
                         <button 

@@ -148,17 +148,19 @@ export function ContextualRecommendations() {
 
     useEffect(() => {
         setIsMounted(true);
-        const data = getAllRecommendations(user, activeVibe);
-        setTimeBased(data.timeBased);
-        setLocationBased(data.locationBased);
-        setPersonalized(data.personalized);
-        setTimePattern(data.timePattern);
-        setTimeData(getTimeOfDay());
+        const fetchAll = async () => {
+            const data = await getAllRecommendations(user, activeVibe);
+            setTimeBased(data.timeBased);
+            setLocationBased(data.locationBased);
+            setPersonalized(data.personalized);
+            setTimePattern(data.timePattern);
+            setTimeData(getTimeOfDay());
+        };
+        fetchAll();
     }, [user, activeVibe]);
 
     const handleVibeChange = (vibeId: string) => {
         setActiveVibe(vibeId);
-        // Data will be updated by the main useEffect
     };
 
     if (!isMounted || !timeData) return (

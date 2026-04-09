@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { GlassCard } from "./GlassCard";
 import { BrainCircuit, Play } from "lucide-react";
 import { useAudio } from "@/lib/AudioContext";
+import { getTracksByMood, Track } from "@/lib/recommendations";
 
 const MOODS = [
     { id: "focus", label: "Deep Focus", color: "from-blue-500 to-cyan-500", shadow: "rgba(59,130,246,0.5)", angle: -90 },
@@ -18,6 +19,23 @@ export function MoodDiscovery() {
     const { playTrack } = useAudio();
     const [activeMood, setActiveMood] = useState(MOODS[0]);
     const [isSpinning, setIsSpinning] = useState(false);
+    const [tracks, setTracks] = useState<Track[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
+        const fetchMoodTracks = async () => {
+            setIsLoading(true);
+            try {
+                const results = await getTracksByMood(activeMood.id);
+                setTracks(results.slice(0, 5));
+            } catch (err) {
+                console.error("Mood fetch error:", err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchMoodTracks();
+    }, [activeMood]);
 
     const handleMoodSelect = (mood: typeof MOODS[0]) => {
         setIsSpinning(true);
@@ -134,37 +152,42 @@ export function MoodDiscovery() {
                                 </button>
                             </div>
 
-                            {/* Mock Tracklist */}
-                            <div className="flex flex-col gap-3">
-                                {[1, 2, 3].map((i) => (
+                            {/* Real-time Tracklist */}
+                            <div className="flex flex-col gap-3 min-h-[200px]">
+                                {isLoading ? (
+                                    <div className="flex flex-col gap-3">
+                                        {[1, 2, 3].map(i => (
+                                            <div key={i} className="animate-pulse flex items-center gap-3 p-2">
+                                                <div className="w-8 h-8 rounded bg-white/5" />
+                                                <div className="flex-1 space-y-2">
+                                                    <div className="h-2 bg-white/10 rounded w-1/2" />
+                                                    <div className="h-2 bg-white/5 rounded w-1/4" />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : tracks.map((track, i) => (
                                     <div 
-                                        key={i} 
-                                        onClick={() => playTrack({
-                                            id: `mood-${activeMood.id}-${i}`,
-                                            title: `${activeMood.label} Track ${i}`,
-                                            artist: "AI Generated",
-                                            cover: "https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=200&h=200&auto=format&fit=crop",
-                                            color: activeMood.color.split(' ')[0]
-                                        })}
+                                        key={track.id} 
+                                        onClick={() => playTrack(track)}
                                         className="flex items-center justify-between group cursor-pointer p-2 rounded-lg hover:bg-white/5 transition-colors"
                                     >
                                         <div className="flex items-center gap-3">
-                                            <span className="text-white/30 text-sm w-4">{i}</span>
-                                            <div className="w-8 h-8 rounded bg-white/10 overflow-hidden relative">
-                                                {/* skeleton visual */}
-                                                <div className="absolute inset-0 bg-gradient-to-tr from-white/5 to-white/10 animate-pulse" />
+                                            <span className="text-white/30 text-sm w-4">{i + 1}</span>
+                                            <div className="w-10 h-10 rounded-lg overflow-hidden relative">
+                                                <img src={track.cover} alt={track.title} className="w-full h-full object-cover" />
+                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                    <Play className="w-4 h-4 fill-current text-white" />
+                                                </div>
                                             </div>
-                                            <div className="flex flex-col">
-                                                <div className="w-24 h-3 bg-white/20 rounded-full mb-1" />
-                                                <div className="w-16 h-2 bg-white/10 rounded-full" />
+                                            <div className="flex flex-col truncate max-w-[180px]">
+                                                <span className="text-sm font-bold text-white/90 truncate">{track.title}</span>
+                                                <span className="text-[10px] text-white/40 truncate">{track.artist}</span>
                                             </div>
                                         </div>
-                                        <span className="text-xs text-white/30">3:4{i}</span>
+                                        <span className="text-xs text-white/30">0:30</span>
                                     </div>
                                 ))}
-                                <div className="text-center pt-2">
-                                    <span className="text-xs text-purple-400 font-medium cursor-pointer hover:underline">+ 42 more tracks</span>
-                                </div>
                             </div>
                         </GlassCard>
 

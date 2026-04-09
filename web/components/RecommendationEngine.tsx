@@ -4,7 +4,8 @@ import { motion } from "framer-motion";
 import { Play, Plus, Heart } from "lucide-react";
 import { GlassCard } from "./GlassCard";
 import { useAudio } from "@/lib/AudioContext";
-import { getRecommendedSections } from "@/lib/recommendations";
+import { getTrendingTracks, Track } from "@/lib/recommendations";
+import { useState, useEffect } from "react";
 
 const containerVariants = {
     hidden: { opacity: 0 },
@@ -21,7 +22,42 @@ const itemVariants = {
 
 export function RecommendationEngine() {
     const { playTrack } = useAudio();
-    const sections = getRecommendedSections();
+    const [sections, setSections] = useState<{ title: string; items: Track[] }[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchSections = async () => {
+            setIsLoading(true);
+            try {
+                const results = await getTrendingTracks();
+                setSections([
+                    { title: "Trending Worldwide", items: results.slice(0, 8) },
+                    { title: "Personalized Discovery", items: results.slice(8, 16) },
+                    { title: "New Releases", items: results.slice(16, 24) }
+                ]);
+            } catch (err) {
+                console.error("Failed to fetch trending:", err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchSections();
+    }, []);
+
+    if (isLoading) return (
+        <div className="py-20 flex flex-col gap-12">
+            {[1, 2].map(i => (
+                <div key={i} className="animate-pulse space-y-4">
+                    <div className="h-8 bg-white/10 rounded w-1/4" />
+                    <div className="flex gap-6 overflow-hidden">
+                        {[1, 2, 3, 4].map(j => (
+                            <div key={j} className="w-48 h-64 bg-white/5 rounded-2xl shrink-0" />
+                        ))}
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
 
     return (
         <section className="flex flex-col gap-16 w-full py-10">

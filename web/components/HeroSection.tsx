@@ -1,8 +1,11 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Play } from "lucide-react";
+import { Play, Loader2 } from "lucide-react";
 import { GlassCard } from "./GlassCard";
+import { useAudio } from "@/lib/AudioContext";
+import { getTrendingTracks } from "@/lib/recommendations";
+import { useState } from "react";
 
 const floatingAlbums = [
     { id: 1, url: "https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=400&h=400&auto=format&fit=crop", delay: 0, x: -150, y: -50, rotate: -10, scale: 0.9 },
@@ -11,6 +14,22 @@ const floatingAlbums = [
 ];
 
 export function HeroSection() {
+    const { playTrack } = useAudio();
+    const [isStarting, setIsStarting] = useState(false);
+
+    const startRadio = async () => {
+        setIsStarting(true);
+        try {
+            const tracks = await getTrendingTracks();
+            if (tracks.length > 0) {
+                // Play a random trending track
+                const randomTrack = tracks[Math.floor(Math.random() * tracks.length)];
+                playTrack(randomTrack);
+            }
+        } finally {
+            setIsStarting(false);
+        }
+    };
     return (
         <section className="relative min-h-[60vh] w-full flex items-center justify-center pt-20 pb-10 mb-20">
             <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden rounded-3xl">
@@ -55,11 +74,19 @@ export function HeroSection() {
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.8, delay: 0.3, type: "spring" }}
                 >
-                    <button className="group relative px-8 py-4 bg-white text-black rounded-full font-bold text-lg overflow-hidden transition-transform hover:scale-105 active:scale-95 shadow-[0_0_40px_rgba(255,255,255,0.3)]">
+                    <button 
+                        onClick={startRadio}
+                        disabled={isStarting}
+                        className="group relative px-8 py-4 bg-white text-black rounded-full font-bold text-lg overflow-hidden transition-transform hover:scale-105 active:scale-95 shadow-[0_0_40px_rgba(255,255,255,0.3)] disabled:opacity-50"
+                    >
                         <div className="absolute inset-0 bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 opacity-0 group-hover:opacity-20 transition-opacity" />
                         <div className="flex items-center gap-3 relative z-10">
-                            <Play className="w-5 h-5 fill-current" />
-                            <span>Start Discovery Radio</span>
+                            {isStarting ? (
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                            ) : (
+                                <Play className="w-5 h-5 fill-current" />
+                            )}
+                            <span>{isStarting ? "Tuning Discovery Radio..." : "Start Discovery Radio"}</span>
                         </div>
                     </button>
                 </motion.div>
