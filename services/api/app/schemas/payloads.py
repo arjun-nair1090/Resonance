@@ -49,6 +49,7 @@ class TrackEvent(BaseModel):
     action: str = Field(pattern="^(play|skip|replay|favorite|like|dislike|search|save|complete)$")
     mood: str | None = None
     city: str | None = None
+    geohash: str | None = None   # micro-location bucket forwarded from the browser GPS ping
     session_id: str | None = None
     context: dict = {}
     song: SongRead | None = None
@@ -57,6 +58,7 @@ class TrackEvent(BaseModel):
 class RecommendationRequest(BaseModel):
     mood: str | None = None
     city: str | None = None
+    geohash: str | None = None   # current micro-location bucket; drives location-aware seeding
     refresh_nonce: int = 0
     limit: int = Field(default=12, ge=1, le=40)
 
@@ -83,3 +85,18 @@ class PlaylistRead(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ---------------------------------------------------------------------------
+# Location tracking
+# ---------------------------------------------------------------------------
+
+class LocationTrackRequest(BaseModel):
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+
+
+class LocationTrackResponse(BaseModel):
+    geohash: str                    # "lat_bucket:lng_bucket" key for this visit
+    frequent_geohash: str | None = None   # user's single most-visited bucket overall
+    visit_count: int                # how many times the user has been logged at this exact bucket

@@ -63,7 +63,7 @@ export const api = {
   search(query: string, token: string) {
     return request<Song[]>(`/music/search?q=${encodeURIComponent(query)}`, {}, token);
   },
-  event(payload: { itunes_track_id: number; action: string; mood?: string; city?: string; context?: object; song?: Song }, token: string) {
+  event(payload: { itunes_track_id: number; action: string; mood?: string; city?: string; geohash?: string; context?: object; song?: Song }, token: string) {
     return request<{ status: string }>("/music/events", { method: "POST", body: JSON.stringify(payload) }, token);
   },
   favorites(token: string) {
@@ -72,8 +72,15 @@ export const api = {
   recent(token: string) {
     return request<Song[]>("/music/recent", {}, token);
   },
-  recommendations(payload: { mood?: string; city?: string; refresh_nonce?: number; limit?: number }, token: string) {
+  recommendations(payload: { mood?: string; city?: string; geohash?: string; refresh_nonce?: number; limit?: number }, token: string) {
     return request<RecommendationSection[]>("/recommendations", { method: "POST", body: JSON.stringify(payload) }, token);
+  },
+  trackLocation(latitude: number, longitude: number, token: string) {
+    return request<{ geohash: string; frequent_geohash: string | null; visit_count: number }>(
+      "/location/track",
+      { method: "POST", body: JSON.stringify({ latitude, longitude }) },
+      token
+    );
   },
   playlists(token: string) {
     return request<Playlist[]>("/playlists", {}, token);
