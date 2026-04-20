@@ -1,0 +1,56 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: resonance
+      POSTGRES_PASSWORD: resonance
+      POSTGRES_DB: resonance
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./services/api/migrations/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U resonance"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+
+  api:
+    build:
+      context: ./services/api
+    environment:
+      DATABASE_URL: postgresql+asyncpg://resonance:resonance@postgres:5432/resonance
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: change-me-before-production
+      JWT_ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 10080
+      ALLOWED_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      ITUNES_COUNTRY: US
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  web:
+    build:
+      context: ./apps/web
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  postgres-data:
+  redis-data:
