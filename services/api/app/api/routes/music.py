@@ -54,6 +54,7 @@ async def track_event(
             city=payload.city or user.city,
             hour_of_day=now.hour,
             session_id=payload.session_id,
+            geohash=payload.geohash,   # micro-location bucket at time of play
             context=payload.context,
         )
     )

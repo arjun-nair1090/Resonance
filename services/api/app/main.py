@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select, text
 
-from app.api.routes import admin, auth, music, playlists, recommendations, social
+from app.api.routes import admin, auth, location, music, playlists, recommendations, social
 from app.core.config import settings
 from app.core.db import SessionLocal
 from app.core.security import hash_password
@@ -28,6 +28,7 @@ app.include_router(recommendations.router, prefix="/recommendations", tags=["rec
 app.include_router(playlists.router, prefix="/playlists", tags=["playlists"])
 app.include_router(social.router, prefix="/social", tags=["social"])
 app.include_router(admin.router, prefix="/admin", tags=["admin"])
+app.include_router(location.router, prefix="/location", tags=["location"])
 
 
 @app.on_event("startup")

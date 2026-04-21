@@ -193,12 +193,25 @@ class HybridRecommendationEngine:
         period = daypart()
         city = (request.city or "").lower()
         mood = (request.mood or "").lower()
+        geohash = request.geohash or ""
         rotation = max(request.refresh_nonce, 0)
-        # Precompute user profile once — used by every section's ranking and seeding.
-        user_artists = await self._user_artists(user_id)   # ordered list: top artists by plays+likes
-        user_genres = await self._user_genres(user_id)     # set for O(1) membership checks
+
+        # Precompute global user profile (all-time top artists/genres)
+        user_artists = await self._user_artists(user_id)
+        user_genres = await self._user_genres(user_id)
         artist_queries = self._build_artist_queries(user_artists, rotation)
-        recommended_queries = self._build_recommended_queries(user_artists, user_genres, mood, city, rotation)
+
+        # Micro-location profile: top artists/genres at THIS specific ~200 m bucket
+        loc_artists: list[str] = []
+        loc_genres: set[str] = set()
+        if geohash:
+            loc_artists = await self._user_artists_at_geohash(user_id, geohash)
+            loc_genres = await self._user_genres_at_geohash(user_id, geohash)
+
+        recommended_queries = self._build_recommended_queries(
+            user_artists, user_genres, mood, city, rotation,
+            loc_artists=loc_artists, loc_genres=loc_genres,
+        )
 
         definitions = [
             ("Recommended For You", "recommended", recommended_queries, "Your listening history, likes, and recent actions reshape this mix after every click."),
@@ -211,12 +224,24 @@ class HybridRecommendationEngine:
             ("Smart Workout Playlists", "workout", self._window(WORKOUT_CLUSTERS, rotation, ["workout hits", "gym music", "high energy mix"]), "High-energy tracks for movement."),
         ]
 
+        # If we have micro-location data, inject a dedicated section for it
+        if loc_artists or loc_genres:
+            loc_queries = self._build_location_queries(loc_artists, loc_genres, rotation)
+            definitions.insert(1, (
+                "📍 Here With You",
+                "micro_location",
+                loc_queries,
+                "Songs you tend to listen to at this exact spot — personalised to your ~200 m neighbourhood.",
+            ))
+
         payload = []
         for title, key, queries, reason in definitions:
             tracks = await self._collect_tracks(queries, redis=redis, limit=request.limit)
-            # Pass precomputed profile so _rank never hits the DB again.
-            ranked = await self._rank(tracks, mood=mood, city=city, period=period,
-                                      user_artists=user_artists, user_genres=user_genres)
+            ranked = await self._rank(
+                tracks, mood=mood, city=city, period=period,
+                user_artists=user_artists, user_genres=user_genres,
+                loc_artists=loc_artists, loc_genres=loc_genres,
+            )
             payload.append({"title": title, "key": key, "tracks": [item.song for item in ranked], "reason": reason})
         return payload
 
@@ -246,10 +271,14 @@ class HybridRecommendationEngine:
         period: str,
         user_artists: list[str] | None = None,
         user_genres: set[str] | None = None,
+        loc_artists: list[str] | None = None,
+        loc_genres: set[str] | None = None,
     ) -> list[ScoredSong]:
         # Accept precomputed profile data to avoid redundant DB queries per section.
         artists_set: set[str] = set(user_artists) if user_artists else set()
         genres_set: set[str] = user_genres if user_genres is not None else set()
+        loc_artists_set: set[str] = set(loc_artists) if loc_artists else set()
+        loc_genres_set: set[str] = loc_genres if loc_genres else set()
         results: list[ScoredSong] = []
         for index, track in enumerate(tracks):
             score = 0.42
@@ -257,6 +286,11 @@ class HybridRecommendationEngine:
                 score += 0.2
             if track.artist_name.lower() in artists_set:
                 score += 0.22
+            # Micro-location bonus: extra weight for artists/genres heard at THIS spot
+            if track.artist_name.lower() in loc_artists_set:
+                score += 0.15
+            if track.genre and track.genre.lower() in loc_genres_set:
+                score += 0.12
             score += self._mood_score(track, mood)
             score += self._time_score(track, period)
             score += self._location_score(track, city)
@@ -272,13 +306,20 @@ class HybridRecommendationEngine:
         mood: str,
         city: str,
         rotation: int,
+        loc_artists: list[str] | None = None,
+        loc_genres: set[str] | None = None,
     ) -> list[str]:
         """Build personalized seed queries for the 'Recommended For You' section.
 
-        user_artists is an *ordered* list (top artists by plays+likes first),
-        which guarantees the most-played artists anchor the primary seed queries.
+        Micro-location artists/genres are prepended as the highest-priority seeds
+        so the section always reflects what the user listens to at their current spot.
         """
         queries: list[str] = []
+        # Highest priority: what the user plays at THIS micro-location.
+        if loc_artists:
+            queries.extend([f"{artist} essentials" for artist in loc_artists[:2]])
+        if loc_genres:
+            queries.extend([f"{genre} essentials" for genre in list(loc_genres)[:1]])
         # Primary seeds: the user's top 3 artists drive this section.
         queries.extend([f"{artist} similar artists" for artist in user_artists[:3]])
         # Secondary seeds: genre affinity broadens discovery.
@@ -287,6 +328,19 @@ class HybridRecommendationEngine:
         queries.extend(HybridRecommendationEngine._window(MOOD_CLUSTERS.get(mood), rotation, []))
         queries.extend(HybridRecommendationEngine._window(CITY_CLUSTERS.get(city), rotation, []))
         return HybridRecommendationEngine._unique(queries) or ["top songs", "global hits", "discover weekly"]
+
+    @staticmethod
+    def _build_location_queries(
+        loc_artists: list[str],
+        loc_genres: set[str],
+        rotation: int,
+    ) -> list[str]:
+        """Build seed queries for the dedicated '📍 Here With You' micro-location section."""
+        queries: list[str] = []
+        queries.extend([f"{artist} essentials" for artist in loc_artists[:4]])
+        queries.extend([f"{artist} deep cuts" for artist in loc_artists[:2]])
+        queries.extend([f"{genre} essentials" for genre in list(loc_genres)[:3]])
+        return HybridRecommendationEngine._unique(queries) or ["top songs", "global hits"]
 
     @staticmethod
     def _build_artist_queries(user_artists: list[str], rotation: int) -> list[str]:
@@ -313,6 +367,38 @@ class HybridRecommendationEngine:
             .limit(10)
         )
         return {row[0].lower() for row in result if row[0]}
+
+    async def _user_artists_at_geohash(self, user_id: str, geohash: str) -> list[str]:
+        """Return artists ordered by play-count at THIS specific ~200 m bucket."""
+        result = await self.db.execute(
+            select(Song.artist_name)
+            .join(ListeningHistory, ListeningHistory.song_id == Song.id)
+            .where(
+                ListeningHistory.user_id == user_id,
+                ListeningHistory.geohash == geohash,
+            )
+            .group_by(Song.artist_name)
+            .order_by(desc(func.count(ListeningHistory.id)))
+            .limit(8)
+        )
+        return [row[0].lower() for row in result if row[0]]
+
+    async def _user_genres_at_geohash(self, user_id: str, geohash: str) -> set[str]:
+        """Return genres the user listens to most at THIS specific ~200 m bucket."""
+        result = await self.db.execute(
+            select(Song.genre)
+            .join(ListeningHistory, ListeningHistory.song_id == Song.id)
+            .where(
+                ListeningHistory.user_id == user_id,
+                ListeningHistory.geohash == geohash,
+                Song.genre.is_not(None),
+            )
+            .group_by(Song.genre)
+            .order_by(desc(func.count(ListeningHistory.id)))
+            .limit(5)
+        )
+        return {row[0].lower() for row in result if row[0]}
+
 
     async def _user_artists(self, user_id: str) -> list[str]:
         """Return artists ordered by engagement (plays + likes) descending.

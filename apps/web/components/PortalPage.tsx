@@ -55,6 +55,9 @@ export function PortalPage() {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
   const [refreshNonce, setRefreshNonce] = useState(0);
+  const [currentGeohash, setCurrentGeohash] = useState<string | null>(null);
+  const [frequentGeohash, setFrequentGeohash] = useState<string | null>(null);
+  const [locationVisits, setLocationVisits] = useState<number>(0);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [newPlaylistDesc, setNewPlaylistDesc] = useState("");
@@ -84,6 +87,14 @@ export function PortalPage() {
     refresh(token);
   }, [token, mood, activeLocation, user?.is_admin, refreshNonce]);
 
+  // Re-ping GPS whenever the token becomes available (or every 5 minutes).
+  useEffect(() => {
+    if (!token) return;
+    detectLocationContext(token);
+    const interval = setInterval(() => detectLocationContext(token), 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [token]);
+
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
     if (hour < 12) return "Morning intelligence is live";
@@ -96,7 +107,7 @@ export function PortalPage() {
     setLoading(true);
     try {
       const [recs, recentTracks, favs, pls] = await Promise.all([
-        api.recommendations({ mood, city: activeLocation, refresh_nonce: refreshNonce, limit: 12 }, activeToken),
+        api.recommendations({ mood, city: activeLocation, geohash: currentGeohash ?? undefined, refresh_nonce: refreshNonce, limit: 12 }, activeToken),
         api.recent(activeToken).catch(() => []),
         api.favorites(activeToken).catch(() => []),
         api.playlists(activeToken).catch(() => [])
@@ -115,22 +126,34 @@ export function PortalPage() {
     }
   }
 
-  function detectLocationContext() {
+  function detectLocationContext(activeToken?: string) {
     if (!navigator.geolocation) {
       setDetectedLocation("City mode");
       return;
     }
     navigator.geolocation.getCurrentPosition(
-      (position) => {
+      async (position) => {
         const { latitude, longitude, altitude } = position.coords;
         const nearMumbaiCoast = latitude > 18 && latitude < 20 && longitude > 72 && longitude < 73.5;
         const coastalSignal = Math.abs(longitude % 10) < 1.2;
         if ((altitude || 0) > 900) setDetectedLocation("Mountains mode");
         else if (nearMumbaiCoast || coastalSignal) setDetectedLocation("Beach mode");
         else setDetectedLocation("City mode");
+
+        // Send GPS coordinates to backend to get the micro-location geohash.
+        if (activeToken) {
+          try {
+            const result = await api.trackLocation(latitude, longitude, activeToken);
+            setCurrentGeohash(result.geohash);
+            setFrequentGeohash(result.frequent_geohash);
+            setLocationVisits(result.visit_count);
+          } catch {
+            // Non-critical: silent fail — recommendations still work without geohash.
+          }
+        }
       },
       () => setDetectedLocation("City mode"),
-      { enableHighAccuracy: false, timeout: 5000, maximumAge: 1000 * 60 * 15 }
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 1000 * 60 * 5 }
     );
   }
 
@@ -151,17 +174,14 @@ export function PortalPage() {
     }
     setCurrent(song);
     if (token) {
-      await api.event({ itunes_track_id: song.itunes_track_id, action: "play", mood, city: activeLocation, context: { locationContext: activeLocation }, song }, token).catch(() => undefined);
-      // Bump nonce after commit so the useEffect re-fetches recommendations with
-      // the updated listening history. The new nonce is passed to the backend,
-      // which advances the rotation window and re-seeds from the latest top artists.
+      await api.event({ itunes_track_id: song.itunes_track_id, action: "play", mood, city: activeLocation, geohash: currentGeohash ?? undefined, context: { locationContext: activeLocation, geohash: currentGeohash }, song }, token).catch(() => undefined);
       setRefreshNonce((n) => n + 1);
     }
   }
 
   async function like(song: Song) {
     if (!token) return;
-    await api.event({ itunes_track_id: song.itunes_track_id, action: "favorite", mood, city: activeLocation, song }, token);
+    await api.event({ itunes_track_id: song.itunes_track_id, action: "favorite", mood, city: activeLocation, geohash: currentGeohash ?? undefined, song }, token);
     await refresh();
   }
 
@@ -409,7 +429,9 @@ export function PortalPage() {
               <Metric icon={<MapPinIcon className="size-5" />} label="Auto context" value={locationContext === "Auto" && detectedLocation.startsWith("City") ? `${user?.city || "City"} mode` : locationContext === "Auto" ? detectedLocation : `${locationContext} mode`} />
               <Metric icon={<ClockIcon className="size-5" />} label="Time model" value={new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} />
               <Metric icon={<BoltIcon className="size-5" />} label="Mood signal" value={`${mood} / mix ${refreshNonce + 1}`} />
-              <Metric icon={<Squares2X2Icon className="size-5" />} label="Saved playlists" value={playlists.length || "Ready"} />
+              {currentGeohash
+                ? <Metric icon={<MapPinIcon className="size-5" />} label="Here with you" value={locationVisits > 1 ? `${locationVisits}× visited spot` : "New spot detected"} />
+                : <Metric icon={<Squares2X2Icon className="size-5" />} label="Saved playlists" value={playlists.length || "Ready"} />}
             </div>
           </div>
           <QueuePanel queue={queue} onPlay={play} onRemove={removeFromQueue} />

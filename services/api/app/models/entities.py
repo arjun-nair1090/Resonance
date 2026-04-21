@@ -56,6 +56,7 @@ class ListeningHistory(Base, TimestampMixin):
     city: Mapped[str | None] = mapped_column(String(100), index=True)
     hour_of_day: Mapped[int] = mapped_column(Integer, index=True)
     session_id: Mapped[str | None] = mapped_column(UUID(as_uuid=False), index=True)
+    geohash: Mapped[str | None] = mapped_column(String(16), index=True)  # micro-location bucket at time of play
     context: Mapped[dict] = mapped_column(JSONB, default=dict)
 
 
@@ -116,6 +117,12 @@ class LocationLog(Base, TimestampMixin):
     city: Mapped[str | None] = mapped_column(String(100), index=True)
     country: Mapped[str | None] = mapped_column(String(2), index=True)
     ip_hash: Mapped[str | None] = mapped_column(String(128))
+    # Micro-location fields: coordinates rounded to ~200m buckets
+    latitude: Mapped[float | None] = mapped_column(Numeric(9, 6), index=False)
+    longitude: Mapped[float | None] = mapped_column(Numeric(9, 6), index=False)
+    lat_bucket: Mapped[float | None] = mapped_column(Numeric(6, 3), index=True)   # rounded to 0.002 deg ≈ 200m
+    lng_bucket: Mapped[float | None] = mapped_column(Numeric(6, 3), index=True)
+    geohash: Mapped[str | None] = mapped_column(String(16), index=True)            # "lat_bucket:lng_bucket" key
 
 
 class Recommendation(Base, TimestampMixin):
