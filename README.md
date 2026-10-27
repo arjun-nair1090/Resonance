@@ -1,48 +1,55 @@
-# Resonance AI Music Platform
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/readme/banner-dark.svg">
+  <img src="docs/readme/banner-light.svg" alt="Resonance. A music app that learns what you play, when, and where. Diagram of how the live ranker adds up a track's score." width="100%">
+</picture>
 
-Resonance is a production-oriented AI music recommendation platform built with Next.js, FastAPI, PostgreSQL, Redis, JWT authentication, and a hybrid Python recommendation engine. It uses the iTunes Search API for real preview audio, album art, artist metadata, and searchable music content.
+Resonance is a music app with a home screen that rebuilds itself around you. It plays real 30-second previews from the iTunes catalogue. Every play, like and skip is logged, and the next refresh leans towards what you actually listen to, at that time of day, and at that spot. If you always play the same artist at the gym, they come back when you're at the gym.
 
-## What Is Included
+## What's in it
 
-- Premium streaming-style Next.js interface with search, audio preview playback, favorites, playlists, queue, social activity, and admin analytics.
-- FastAPI backend with JWT auth, iTunes proxy/search, user behavior tracking, playlist collaboration, recommendations, and admin metrics.
-- PostgreSQL schema covering users, songs, listening history, favorites, playlists, members, moods, locations, recommendations, sessions, analytics, and friend activity.
-- Redis caching for iTunes responses and hot recommendation payloads.
-- Hybrid recommender using content scoring, collaborative signals, behavior scores, trending injection, time-aware boosts, mood matching, location mapping, weather, and festival context.
-- Docker Compose for local Postgres, Redis, API, and web services.
+- **A home screen of shelves:** Recommended for you, Based on your mood, Morning/Afternoon/Evening picks, Because you like these artists, Hidden gems, Discover weekly and workout mixes. Each shelf says why it's there.
+- **Here with you:** a shelf that only appears where you've listened before. Plays are bucketed by geohash into roughly 200 m squares, so your favourite café gets its own mix.
+- **Search, a player with a queue, favourites, playlists you can share with friends,** and a friends' activity feed.
+- **An admin page** with listening analytics.
 
-## Quick Start
+## How a track gets ranked
 
-1. Copy environment variables.
+For each shelf, the API turns your history, mood, the time of day and your city into search queries, and pulls candidates from iTunes. Redis caches those lookups. Each candidate then gets a score: a base of 0.42, plus a fixed weight for every signal it matches. Those signals are your genres and artists, the artists and genres you play at this spot, your mood, the time of day and your city. A small bonus goes to higher search positions, and a little jitter keeps refreshes from repeating. The total is capped at 1, which is the picture above. Weights live in `services/api/app/recommender/engine.py`.
+
+The live ranker is deliberately simple, so a shelf comes back fast. `recommender/training.py` holds the offline pipeline meant to replace it once there's enough listening data: TF-IDF content similarity, SVD collaborative filtering and an XGBoost pairwise ranker. It isn't wired into the API yet.
+
+```mermaid
+flowchart LR
+    User["Listener"] --> Web["Next.js app"]
+    Web --> API["FastAPI"]
+    API --> Auth["JWT auth"]
+    API --> Redis["Redis cache"]
+    API --> DB["PostgreSQL"]
+    API --> ITunes["iTunes Search API"]
+    API --> Rec["Ranker"]
+    Rec --> DB
+    Rec --> Redis
+```
+
+## Run it
+
+With Docker:
 
 ```powershell
 Copy-Item .env.example .env
-```
-
-2. Start infrastructure and services.
-
-```powershell
 docker compose up --build
 ```
 
-3. Open the app.
+The app is on http://localhost:3000 and the API docs are on http://localhost:8000/docs. Postgres runs the migrations in `services/api/migrations` on first start.
 
-- Web: http://localhost:3000
-- API docs: http://localhost:8000/docs
-
-## Local Development Without Docker
-
-Backend:
+Without Docker, start Postgres and Redis yourself, point `.env` at them, then:
 
 ```powershell
 cd services/api
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+python -m venv .venv; .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
-
-Frontend:
 
 ```powershell
 cd apps/web
@@ -50,33 +57,14 @@ npm install
 npm run dev
 ```
 
-## Architecture
+## Where things are
 
-```mermaid
-flowchart LR
-    User["Listener"] --> Web["Next.js App"]
-    Web --> API["FastAPI"]
-    API --> Auth["JWT Auth"]
-    API --> Redis["Redis Cache"]
-    API --> DB["PostgreSQL"]
-    API --> ITunes["iTunes Search API"]
-    API --> Rec["Hybrid Recommender"]
-    Rec --> DB
-    Rec --> Redis
-```
+| Path | What's there |
+|---|---|
+| `apps/web` | Next.js 15 app: pages, player, shelves |
+| `services/api/app/api/routes` | Auth, music, playlists, recommendations, social, location and admin endpoints |
+| `services/api/app/recommender` | The live ranker and the offline training pipeline |
+| `services/api/migrations` | The Postgres schema |
+| `docs/` | Architecture notes and deployment |
 
-## Recommendation Strategy
-
-The ranking pipeline blends:
-
-1. Content-based genre, artist, mood, and metadata similarity.
-2. Collaborative signals from users with overlapping favorites, playlist saves, and plays.
-3. Behavioral scoring from plays, skips, replays, likes, dislikes, search, session time, and saves.
-4. Trending injection by region and global activity.
-5. Time-aware ranking for morning, afternoon, evening, and night patterns.
-6. Mood matching for Happy, Sad, Gym, Party, Relaxed, Romantic, Focus, and Angry.
-7. Context boosts for weather and festivals.
-
-## Resume Pitch
-
-Built a scalable AI-powered music platform with a modern streaming UI, JWT-secured FastAPI backend, PostgreSQL event schema, Redis caching, iTunes API ingestion, collaborative playlist features, analytics dashboard, and a hybrid recommendation engine that personalizes by mood, location, time, weather, and user behavior.
+Built with Next.js, TypeScript, Tailwind, FastAPI, SQLAlchemy, PostgreSQL, Redis and Docker.
